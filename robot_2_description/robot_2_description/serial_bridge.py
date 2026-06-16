@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-import rclcpp
-from rclcpp.node import Node
+import rclpy
+from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray
 import socket
 import time
@@ -21,9 +21,19 @@ class BluetoothBridge(Node):
         self.v_right = 0.0
         self.steer = 0.0
 
-        # Đăng ký nhận dữ liệu từ các Topic đầu ra của node Ackermann C++
-        self.sub_pos = self.create_subscription(Float64MultiArray, '/forward_position_controller/commands', self.pos_cb, 10)
-        self.sub_vel = self.create_subscription(Float64MultiArray, '/forward_velocity_controller/commands', self.vel_cb, 10)
+        # SỬA CHUẨN PYTHON: Thêm tường minh tham số callback=...
+        self.sub_pos = self.create_subscription(
+            Float64MultiArray, 
+            '/forward_position_controller/commands', 
+            self.pos_cb, 
+            10
+        )
+        self.sub_vel = self.create_subscription(
+            Float64MultiArray, 
+            '/forward_velocity_controller/commands', 
+            self.vel_cb, 
+            10
+        )
         
         # Vòng lặp gửi dữ liệu định kỳ 50Hz (20ms/lần) khớp hoàn toàn với update_rate của STM32
         self.timer = self.create_timer(0.02, self.send_to_stm32)
@@ -74,17 +84,18 @@ class BluetoothBridge(Node):
             self.connect_to_hc05()
 
 def main(args=None):
-    rclcpp.init(args=args)
+    # SỬA CHUẨN PYTHON: Đổi rclcpp thành rclpy toàn bộ cụm điều khiển vòng đời
+    rclpy.init(args=args)
     node = BluetoothBridge()
     try:
-        rclcpp.spin(node)
+        rclpy.spin(node)
     except KeyboardInterrupt:
         pass
     finally:
         if node.sock:
             node.sock.close()
         node.destroy_node()
-        rclcpp.shutdown()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
