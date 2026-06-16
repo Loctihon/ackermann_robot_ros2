@@ -1,0 +1,24 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 50  # Hz
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    forward_velocity_controller:
+      type: velocity_controllers/JointGroupVelocityController
+
+    forward_position_controller:
+      type: position_controllers/JointGroupPositionController
+
+forward_velocity_controller:
+  ros__parameters:
+    joints:
+      - left_rear_wheel_to_base_link
+      - right_rear_wheel_to_base_link
+
+forward_position_controller:
+  ros__parameters:
+    joints:
+      - left_steering_to_base_link
+      - right_steering_to_base_link
