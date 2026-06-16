@@ -1,10 +1,7 @@
 joy_node:
   ros__parameters:
     device_id: 0
-    # Tăng mạnh vùng mù (Deadzone) lên 0.8 cho các trục điều hướng.
-    # Thao tác này giúp triệt tiêu hoàn toàn dải số trôi tự do từ -1.0 đến -0.8 của nút LT khi thả tay,
-    # ép dữ liệu thô gửi về ROS 2 bắt buộc phải bằng 0.0 im phăng phắc!
-    deadzone: 0.8
+    deadzone: 0.1
     autorerepeat_rate: 20.0
 
 teleop_twist_joy_node:
@@ -15,10 +12,10 @@ teleop_twist_joy_node:
     axis_linear:
       x: 1
     scale_linear:
-      x: 1.0          
+      x: 0.8         
 
     # --- ĐIỀU KHIỂN ĐÁNH LÁI (CẦN TRÁI VỪA GẠT NGANG) ---
     axis_angular:
       yaw: 0
     scale_angular:
-      yaw: 0.4        # Trả về số dương chuẩn mực
+      yaw: 0.5        # Trả về số dương chuẩn mực
