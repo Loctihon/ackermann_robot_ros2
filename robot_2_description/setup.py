@@ -26,6 +26,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'serial_bridge = robot_2_description.serial_bridge:main',
         ],
     },
 )

@@ -1,0 +1,17 @@
+teleop_twist_joy_node:
+  ros__parameters:
+    # Nút giữ để cho phép chạy (Deadman switch) - Nút LB (nút số 4)
+    # Phải giữ nút này thì gạt cần xe mới chạy, buông ra xe dừng ngay để an toàn
+    enable_button: 4  
+
+    # Cần gạt dọc bên Trái (Axis 1) điều khiển Tốc độ Tiến/Lùi
+    axis_linear:
+      x: 1
+    scale_linear:
+      x: 0.8  # Tốc độ tối đa m/s khi gạt kịch kim
+
+    # Cần gạt ngang bên Phải (Axis 3) điều khiển Góc bẻ lái Trái/Phải
+    axis_angular:
+      z: 3
+    scale_angular:
+      z: 0.6  # Góc lái tối đa (Radian) ~ 34 độ trùng với giới hạn xe

@@ -29,11 +29,14 @@ ament_target_dependencies(ackermann_kinematics rclcpp geometry_msgs std_msgs)
 add_executable(serial_bridge src/serial_bridge.cpp)
 ament_target_dependencies(serial_bridge rclcpp geometry_msgs std_msgs)
 
-install(TARGETS
+install(
+  TARGETS
   ackermann_kinematics
   serial_bridge
   DESTINATION lib/${PROJECT_NAME}
   
 )
-
+install(DIRECTORY launch config
+  DESTINATION share/${PROJECT_NAME}
+)
 ament_package()
