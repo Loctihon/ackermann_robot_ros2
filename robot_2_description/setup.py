@@ -15,7 +15,15 @@ setup(
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'urdf'), glob('urdf/*')),
         (os.path.join('share', package_name, 'meshes'), glob('meshes/*')),
-        (os.path.join('share', package_name, 'config'), glob('config/*'))
+        (os.path.join('share', package_name, 'config'), glob('config/*')),
+
+        (os.path.join('share', package_name, 'worlds'), glob('worlds/*.world')),
+        (os.path.join('share', package_name, 'materials/scripts'), glob('materials/scripts/*')),
+        (os.path.join('share', package_name, 'materials/textures'), glob('materials/textures/*')),
+
+        (os.path.join('share', package_name, 'models/saban_floor'), glob('models/saban_floor/*.*')),
+        (os.path.join('share', package_name, 'models/saban_floor/materials/scripts'), glob('models/saban_floor/materials/scripts/*')),
+        (os.path.join('share', package_name, 'models/saban_floor/materials/textures'), glob('models/saban_floor/materials/textures/*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -27,6 +35,7 @@ setup(
     entry_points={
         'console_scripts': [
             'serial_bridge = robot_2_description.serial_bridge:main',
+            'detect_line = robot_2_description.detect_line:main',
         ],
     },
 )

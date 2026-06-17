@@ -16,6 +16,14 @@ def generate_launch_description():
     robot_description_config = xacro.process_file(xacro_file)
     robot_urdf = robot_description_config.toxml()
 
+    models_path = os.path.join(share_dir, 'models')
+    if 'GAZEBO_MODEL_PATH' in os.environ:
+        os.environ['GAZEBO_MODEL_PATH'] = os.environ['GAZEBO_MODEL_PATH'] + ':' + models_path
+    else:
+        os.environ['GAZEBO_MODEL_PATH'] = models_path
+        
+    world_file_path = os.path.join(share_dir, 'worlds', 'saban.world')
+
     # Node phát thông số robot (BẮT BUỘC PHẢI CÓ)
     robot_state_publisher_node = Node(
         package='robot_state_publisher',
@@ -25,7 +33,6 @@ def generate_launch_description():
             {'robot_description': robot_urdf}
         ]
     )
-
     # Khởi động Server Gazebo
     gazebo_server = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
@@ -36,7 +43,8 @@ def generate_launch_description():
             ])
         ]),
         launch_arguments={
-            'pause': 'false'
+            'pause': 'false',
+            'world': world_file_path  
         }.items()
     )
 

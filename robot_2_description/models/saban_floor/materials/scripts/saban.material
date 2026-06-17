@@ -1,0 +1,16 @@
+material Saban/Mat
+{
+  technique
+  {
+    pass
+    {
+      lighting off
+      texture_unit
+      {
+        texture Saban.png
+        filtering anisotropic
+        max_anisotropy 16
+      }
+    }
+  }
+}

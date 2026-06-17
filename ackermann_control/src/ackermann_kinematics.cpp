@@ -25,7 +25,7 @@ public:
     wheelbase_ = 0.200;
     track_width_ = 0.166;
     wheel_radius_ = 0.035;
-    max_steer_ = 0.6; // Giới hạn góc bẻ lái cơ khí (~34 độ)
+    max_steer_ = 0.785; // Giới hạn góc bẻ lái cơ khí (~34 độ)
     
     RCLCPP_INFO(this->get_logger(), "C++ Ackermann Kinematics Node chuẩn hóa cho TỰ HÀNH đã khởi động.");
   }

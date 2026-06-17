@@ -6,7 +6,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
     # 1. Đường dẫn tới file cấu hình tay cầm xbox.yaml của bro
     xbox_config_path = os.path.join(
-        get_package_share_directory('robot_2_description'),
+        get_package_share_directory('ackermann_control'),
         'config',
         'xbox.yaml'
     )
@@ -22,7 +22,7 @@ def generate_launch_description():
     # Node 2: Dịch tín hiệu tay cầm thành lệnh /cmd_vel ăn theo file xbox.yaml
     teleop_node = Node(
         package='teleop_twist_joy',
-        executable='teleop_twist_joy_node',
+        executable='teleop_node',
         name='teleop_twist_joy_node',
         parameters=[xbox_config_path],
         output='screen'
