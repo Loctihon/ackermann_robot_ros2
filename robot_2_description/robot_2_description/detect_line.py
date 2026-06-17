@@ -14,72 +14,93 @@ class GazeboLaneKeeper(Node):
         self.br = CvBridge()
         
         self.offset_to_center = 260 
-        self.one_line_counter = 0
-        # Ngưỡng 30 frames (~1 giây ở 30fps)
-        self.max_one_line_frames = 30 
         
-        self.get_logger().info("🔥 Node Lane Keeper: Chế độ Ưu tiên Cua Phải!")
+        # ==========================================
+        # 🔥 ĐÃ KHÔI PHỤC: BỘ ĐẾM ÉP CUA
+        # ==========================================
+        self.one_line_counter = 0
+        self.max_one_line_frames = 90 # Hạ xuống 30 frame (~1 giây) để cua cho lẹ
+        
+        self.get_logger().info("🔥 Node Bám Lề Trái + Fail-safe Cua Phải đã sẵn sàng!")
 
     def image_callback(self, msg):
         cv_image = self.br.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         h, w, _ = cv_image.shape
-        roi = cv_image[int(h * 0.6):h, 0:w]
-        roi_h, roi_w, _ = roi.shape
+        
+        # Cắt ROI sát mũi xe để chống cua sớm
+        roi = cv_image[int(h * 2/3):h, 0:w]
         
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv, np.array([20, 100, 100]), np.array([40, 255, 255]))
+        lower_yellow = np.array([20, 100, 100])
+        upper_yellow = np.array([40, 255, 255])
+        mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
         
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        valid_contours = sorted([c for c in contours if cv2.contourArea(c) > 500], key=cv2.contourArea, reverse=True)
+        valid_contours = [c for c in contours if cv2.contourArea(c) > 500]
 
         center_lane = None
-        
-        # ==========================================
-        # LOGIC ƯU TIÊN: BÁM 2 LỀ -> ĐI GIỮA
-        # CHỈ THẤY 1 LỀ TRÁI -> ĐI THẲNG (KHÔNG BÁM)
-        # ==========================================
-        if len(valid_contours) >= 2:
-            self.one_line_counter = 0
-            cx1 = int(cv2.moments(valid_contours[0])['m10'] / cv2.moments(valid_contours[0])['m00'])
-            cx2 = int(cv2.moments(valid_contours[1])['m10'] / cv2.moments(valid_contours[1])['m00'])
-            center_lane = (min(cx1, cx2) + max(cx1, cx2)) // 2
-            cv2.drawContours(roi, [valid_contours[0], valid_contours[1]], -1, (0, 255, 0), 2)
-            
-        elif len(valid_contours) == 1:
-            cx = int(cv2.moments(valid_contours[0])['m10'] / cv2.moments(valid_contours[0])['m00'])
-            # Nếu thấy lề TRÁI (cx < roi_w/2), ta đi thẳng (center_lane = trung tâm ảnh)
-            if cx < (roi_w / 2):
-                center_lane = roi_w // 2 
-                self.one_line_counter += 1
-            else:
-                # Nếu thấy lề PHẢI hoặc không thấy lề trái, tăng counter để ép cua
-                self.one_line_counter += 1
-                center_lane = cx - self.offset_to_center
+        roi_mid_h = int((h/3) / 2) # Tính lại tọa độ Y để vẽ chấm đỏ cho khớp ROI
 
-        # ==========================================
-        # ĐIỀU KHIỂN
-        # ==========================================
+        # ĐẾM SỐ LƯỢNG VẠCH ĐỂ KÍCH HOẠT FAIL-SAFE
+        if len(valid_contours) >= 2:
+            self.one_line_counter = 0 # Thấy 2 vạch -> Đường thẳng -> Reset đếm
+        elif len(valid_contours) == 1:
+            self.one_line_counter += 1 # Chỉ thấy 1 vạch (Vào ngã tư/cua) -> Cộng dồn
+        else:
+            self.one_line_counter = 0 # Mù tịt -> Reset đếm để tránh lỗi
+
+        if len(valid_contours) > 0:
+            # VẪN GIỮ TUYỆT CHIÊU: CHỈ LẤY VẠCH TRÁI NHẤT
+            contour_centers = []
+            for c in valid_contours:
+                M = cv2.moments(c)
+                if M['m00'] > 0:
+                    cx = int(M['m10']/M['m00'])
+                    contour_centers.append((cx, c))
+            
+            if len(contour_centers) > 0:
+                contour_centers.sort(key=lambda item: item[0])
+                cx_leftmost, best_contour = contour_centers[0]
+                
+                cv2.drawContours(roi, [best_contour], -1, (0, 255, 0), 3)
+                
+                # Tâm ảo: Lấy vạch trái đẩy vô giữa
+                center_lane = cx_leftmost + self.offset_to_center
+
         twist = Twist()
         
-        # FAIL-SAFE: Cua phải dứt khoát
-        if self.one_line_counter > self.max_one_line_frames:
-            twist.linear.x = 0.1
-            twist.angular.z = -0.6 # Cua phải
-        elif center_lane is not None:
-            error = center_lane - (roi_w / 2)
-            if abs(error) < 15:
-                twist.angular.z = 0.0
+        if center_lane is not None:
+            cv2.circle(roi, (center_lane, roi_mid_h), 10, (0, 0, 255), -1)
+            error = center_lane - (w / 2)
+            
+            # ==========================================
+            # KIỂM TRA FAIL-SAFE ÉP CUA
+            # ==========================================
+            if self.one_line_counter > self.max_one_line_frames:
+                twist.linear.x = 0.2
+                # Số ÂM là cua PHẢI. Càng âm càng cua gắt.
+                twist.angular.z = -0.5 
+                self.get_logger().warn(f"Chỉ thấy 1 line quá {self.max_one_line_frames} frames! Đang CUA PHẢI...")
             else:
-                twist.angular.z = float(error) * -0.002
-            twist.linear.x = 0.3
+                # BÁM LINE BÌNH THƯỜNG
+                if abs(error) < 15:
+                    twist.angular.z = 0.0
+                else:
+                    twist.angular.z = float(error) * -0.0015
+                twist.linear.x = 0.3  
+            
         else:
-            twist.linear.x = 0.1
-            twist.angular.z = -0.4 # Tìm đường sang phải
+            # Mù hoàn toàn -> Lượn vòng tìm line (Xoay sang Phải)
+            twist.linear.x = 0.2
+            twist.angular.z = -0.4 
+            self.get_logger().warn("Mất sạch vạch! Xoay vòng qua PHẢI tìm lại...")
             
         self.publisher.publish(twist)
-        cv2.imshow("Goc nhin AI", roi)
+        
+        cv2.line(roi, (w//2, 0), (w//2, int(h/3)), (255, 0, 0), 2) 
+        cv2.imshow("Mask Vang", mask)
+        cv2.imshow("Goc nhin AI (ROI)", roi)
         cv2.waitKey(1)
-
 
 def main(args=None):
     rclpy.init(args=args)

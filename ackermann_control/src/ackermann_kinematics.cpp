@@ -25,29 +25,27 @@ public:
     wheelbase_ = 0.200;
     track_width_ = 0.166;
     wheel_radius_ = 0.035;
-    max_steer_ = 0.785; // Giới hạn góc bẻ lái cơ khí (~34 độ)
+    max_steer_ = 0.785; //(~68.7 độ)
     
     RCLCPP_INFO(this->get_logger(), "C++ Ackermann Kinematics Node chuẩn hóa cho TỰ HÀNH đã khởi động.");
   }
 
 private:
   void cmd_cb(const geometry_msgs::msg::Twist::SharedPtr msg)
-  {
-    double v = msg->linear.x;
-    double w = msg->angular.z;
+{
+  double v = msg->linear.x;
+  double w = msg->angular.z;
 
-    double steering_angle = 0.0;
+  double steering_angle = 0.0;
 
-    // TOÁN HỌC HÌNH HỌC ACKERMANN CHUẨN TOÀN CẦU
-    if (std::abs(v) > 0.005) {
-      // Chia trực tiếp cho v để hệ thống tự đảo dấu góc vô lăng khi đi lùi (v < 0)
-      // Giúp bộ điều hướng Nav2 bo cua lùi chuồng chuẩn xác, không bị crash
-      steering_angle = std::atan((wheelbase_ * w) / v);
-    } 
-    else if (std::abs(w) > 0.005) {
-      // Nếu xe đứng im tại chỗ mà gạt bẻ lái: Ép góc theo hướng w của tay cầm
-      steering_angle = (w > 0.0) ? max_steer_ : -max_steer_;
-    }
+  // TOÁN HỌC HÌNH HỌC ACKERMANN CHUẨN TOÀN CẦU
+  if (std::abs(v) > 0.005) {
+    // ĐÃ SỬA: Nhân thêm hệ số khuếch đại 3.5 để trợ lực góc vô lăng gắt hơn khi di chuyển
+    steering_angle = std::atan((wheelbase_ * (w * 3.5)) / v);
+  } 
+  else if (std::abs(w) > 0.005) {
+    steering_angle = (w > 0.0) ? max_steer_ : -max_steer_;
+  }
 
     // Khóa cứng giới hạn góc bẻ lái bảo vệ Servo ảo
     steering_angle = std::clamp(steering_angle, -max_steer_, max_steer_);
