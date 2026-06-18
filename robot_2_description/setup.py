@@ -36,6 +36,8 @@ setup(
         'console_scripts': [
             'serial_bridge = robot_2_description.serial_bridge:main',
             'detect_line = robot_2_description.detect_line:main',
+            'detect_laptop = robot_2_description.detect_laptop:main',
+            'detect_line_new = robot_2_description.detect_line_new:main',
         ],
     },
 )
