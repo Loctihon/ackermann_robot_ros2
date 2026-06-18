@@ -26,7 +26,7 @@ class DetectLineNode(Node):
         self.get_logger().info("🔥 Đang nạp mô hình Test (.pt hoặc .onnx)...")
         
         # Chỉ thẳng đường dẫn tuyệt đối vào file .pt hoặc .onnx của bro
-        test_model_path = '/root/rb2_ws/src/robot_2_description/robot_2_description/best_robo2.pt' 
+        test_model_path = '/root/rb2_ws/src/robot_2_description/robot_2_description/best_robo2.onnx' 
         
         # Nạp mô hình
         self.model = YOLO(test_model_path, task='detect') 
