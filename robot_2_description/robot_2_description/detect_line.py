@@ -10,6 +10,7 @@ class GazeboLaneKeeper(Node):
     def __init__(self):
         super().__init__('gazebo_lane_keeper')
         self.subscription = self.create_subscription(Image, '/camera/image_raw', self.image_callback, 10)
+        self.debug_pub = self.create_publisher(Image, '/camera/debug_image', 10)
         self.publisher = self.create_publisher(Twist, '/cmd_vel', 10)
         self.br = CvBridge()
         
@@ -98,9 +99,11 @@ class GazeboLaneKeeper(Node):
         self.publisher.publish(twist)
         
         cv2.line(roi, (w//2, 0), (w//2, int(h/3)), (255, 0, 0), 2) 
-        cv2.imshow("Mask Vang", mask)
-        cv2.imshow("Goc nhin AI (ROI)", roi)
-        cv2.waitKey(1)
+        # cv2.imshow("Mask Vang", mask)
+        # cv2.imshow("Goc nhin AI (ROI)", roi)
+        # cv2.waitKey(1)
+        debug_msg = self.br.cv2_to_imgmsg(roi, encoding="bgr8")
+        self.debug_pub.publish(debug_msg)
 
 def main(args=None):
     rclpy.init(args=args)

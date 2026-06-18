@@ -70,7 +70,7 @@ class BluetoothBridge(Node):
         target_v_stm = max(-255, min(255, target_v_stm)) # Ép dải thô giới hạn MAX_TARGET_VELOCITY
 
         # 2. Quy đổi Góc bẻ lái Radian -> Xung PWM Servo (1000 đến 2000, giữa là 1500)
-        target_servo_stm = 1500 + int(self.steer * 400.0)
+        target_servo_stm = 1500 - int(self.steer * 400.0)
         target_servo_stm = max(1000, min(2000, target_servo_stm))
 
         # Đóng gói chuỗi String khít khịt với hàm sscanf(parse_buffer, "V:%d,S:%d") dưới STM32
