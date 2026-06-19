@@ -18,7 +18,7 @@ class LaptopYoloBrain(Node):
         self.get_logger().info("🧠 [LAPTOP] Trung vệ AI RTX 3050 đã lên tiếng! Đang quét biển báo...")
         
         # ĐƯỜNG DẪN TỚI FILE .PT TRÊN LAPTOP CỦA BRO
-        model_path = '/home/loc/rb2_ws/src/robot_2_description/robot_2_description/best_robo2.pt'
+        model_path = '/home/loc/rb2_ws/src/robot_2_description/robot_2_description/best_v8.engine'
         self.model = YOLO(model_path, task='detect') 
         self.id_to_label = {
             0: '50',   1: 'G',    2: 'P',    3: 'R', 
