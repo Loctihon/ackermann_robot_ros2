@@ -47,7 +47,7 @@
     <geometry>
       <mesh filename="file://$(find robot_2_description)/meshes/right_steering_1.stl" scale="0.001 0.001 0.001"/>
     </geometry>
-  </collision>
+  </collision>         
 </link>
 
 <link name="left_steering_1">

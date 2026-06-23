@@ -43,7 +43,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        gazebo_launch,
+        # gazebo_launch,
         joy_node,
         teleop_joy_node
     ])
