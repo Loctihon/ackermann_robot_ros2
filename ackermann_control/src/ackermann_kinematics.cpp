@@ -25,7 +25,7 @@ public:
     wheelbase_ = 0.200;
     track_width_ = 0.166;
     wheel_radius_ = 0.035;
-    max_steer_ = 0.785; //(~68.7 độ)
+    max_steer_ = 1.25; //(~71.6 độ)
     
     RCLCPP_INFO(this->get_logger(), "C++ Ackermann Kinematics Node chuẩn hóa cho TỰ HÀNH đã khởi động.");
   }
@@ -44,8 +44,8 @@ private:
 
   // TOÁN HỌC HÌNH HỌC ACKERMANN CHUẨN TOÀN CẦU
   if (std::abs(v) > 0.005) {
-    // ĐÃ SỬA: Nhân thêm hệ số khuếch đại 3.5 để trợ lực góc vô lăng gắt hơn khi di chuyển
-    steering_angle = std::atan((wheelbase_ * (w * 3.5)) / v);
+    // ĐÃ SỬA: Nhân thêm hệ số khuếch đại 4.0 để trợ lực góc vô lăng gắt hơn khi di chuyển
+    steering_angle = std::atan((wheelbase_ * (w * 4.0)) / v);
   } 
   else if (std::abs(w) > 0.005) {
     steering_angle = (w > 0.0) ? max_steer_ : -max_steer_;
