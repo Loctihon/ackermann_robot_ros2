@@ -10,8 +10,6 @@ def generate_launch_description():
         'config',
         'xbox.yaml'
     )
-
-
     camera_v4l2 = Node(
         package='v4l2_camera', 
         executable='v4l2_camera_node',

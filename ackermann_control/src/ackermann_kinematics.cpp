@@ -34,6 +34,10 @@ private:
   void cmd_cb(const geometry_msgs::msg::Twist::SharedPtr msg)
 {
   double v = msg->linear.x;
+
+  if (v < 0.0)
+    v = 0.0;
+    
   double w = msg->angular.z;
 
   double steering_angle = 0.0;

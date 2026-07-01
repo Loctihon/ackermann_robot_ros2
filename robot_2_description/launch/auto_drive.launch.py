@@ -31,8 +31,8 @@ def generate_launch_description():
     detect_line_node = Node(
         package='robot_2_description',
         # Lưu ý: Nhớ ghi rõ đuôi .py nếu tên file thực thi của bro có đuôi này
-        executable='detect_line', 
-        name='detect_line',
+        executable='detect_laptop', 
+        name='detect_laptop',
         output='screen'
     )
 

@@ -1,98 +1,306 @@
 #!/usr/bin/env python3
+import os
+from ament_index_python.packages import get_package_share_directory
 import rclpy
 from rclpy.node import Node
+
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import Twist
+
 import cv2
 import numpy as np
 from ultralytics import YOLO
 
-class LaptopYoloBrain(Node):
+
+class LaptopYoloLaneViewer(Node):
+
     def __init__(self):
-        super().__init__('laptop_yolo_brain')
-        # Lấy ảnh trực tiếp từ luồng thô của Jetson truyền qua Wi-Fi
-        self.subscription = self.create_subscription(Image, '/camera/image_raw', self.image_callback, 10)
-        # Phát lệnh ghi đè xuống Jetson
-        self.override_pub = self.create_publisher(Twist, '/ai_override_cmd', 10)
-        
-        self.get_logger().info("🧠 [LAPTOP] Trung vệ AI RTX 3050 đã lên tiếng! Đang quét biển báo...")
-        
-        # ĐƯỜNG DẪN TỚI FILE .PT TRÊN LAPTOP CỦA BRO
-        model_path = '/home/loc/rb2_ws/src/robot_2_description/robot_2_description/best_v8.engine'
-        self.model = YOLO(model_path, task='detect') 
+        super().__init__('laptop_yolo_lane_viewer')
+
+        self.subscription = self.create_subscription(
+            Image,
+            '/camera/image_raw',
+            self.image_callback,
+            10
+        )
+
+        self.debug_pub = self.create_publisher(
+            Image,
+            '/camera/debug_image',
+            10
+        )
+
+        # ==========================
+        # YOLO MODEL
+        # ==========================
+        model_path = os.path.join(
+    os.getcwd(),
+    'src',
+    'robot_2_description',
+    'robot_2_description',
+    'best_v8.engine'
+)
+        self.model = YOLO(model_path, task='detect')
+
         self.id_to_label = {
-            0: '50',   1: 'G',    2: 'P',    3: 'R', 
-            4: 'SM',   5: 'S',    6: 'TR',   7: 'Y'
+            0: '50',
+            1: 'G',
+            2: 'P',
+            3: 'R',
+            4: 'SM',
+            5: 'S',
+            6: 'TR',
+            7: 'Y'
         }
 
+        # ==========================
+        # THÔNG SỐ NHẬN DIỆN LANE
+        # ==========================
+        self.roi_start_ratio = 0.1
+
+        self.lower_yellow = np.array([20, 100, 100])
+        self.upper_yellow = np.array([40, 255, 255])
+
+        self.min_contour_area = 500
+        self.offset_to_center = 260
+
+        self.get_logger().info(
+            "🧠 Laptop YOLO + Lane Viewer Started - chỉ detect, không điều khiển vận tốc"
+        )
+
+    def ros_image_to_cv2(self, msg):
+
+        if msg.encoding == 'rgb8':
+            img = np.frombuffer(msg.data, dtype=np.uint8)
+            img = img.reshape((msg.height, msg.width, 3))
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            return img.copy()
+
+        elif msg.encoding == 'bgr8':
+            img = np.frombuffer(msg.data, dtype=np.uint8)
+            img = img.reshape((msg.height, msg.width, 3))
+            return img.copy()
+
+        elif msg.encoding == 'rgba8':
+            img = np.frombuffer(msg.data, dtype=np.uint8)
+            img = img.reshape((msg.height, msg.width, 4))
+            img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
+            return img.copy()
+
+        elif msg.encoding == 'bgra8':
+            img = np.frombuffer(msg.data, dtype=np.uint8)
+            img = img.reshape((msg.height, msg.width, 4))
+            img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+            return img.copy()
+
+        else:
+            img = np.frombuffer(msg.data, dtype=np.uint8)
+            img = img.reshape((msg.height, msg.width, 3))
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            return img.copy()
+
+    def publish_debug_image(self, img):
+
+        debug_msg = Image()
+
+        debug_msg.header.stamp = self.get_clock().now().to_msg()
+        debug_msg.header.frame_id = "camera_link"
+
+        debug_msg.height = img.shape[0]
+        debug_msg.width = img.shape[1]
+
+        debug_msg.encoding = "bgr8"
+        debug_msg.is_bigendian = 0
+        debug_msg.step = img.shape[1] * 3
+        debug_msg.data = img.tobytes()
+
+        self.debug_pub.publish(debug_msg)
+
     def image_callback(self, msg):
+
         try:
-            # Đọc ảnh từ sóng Wi-Fi
-            cv_image = np.ndarray(shape=(msg.height, msg.width, 3), dtype=np.uint8, buffer=msg.data)
-            cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR)
-            
-            # Quật YOLO hết công suất bằng GPU Laptop
-            results = self.model(cv_image, verbose=False, conf=0.25)
-            annotated_frame = results[0].plot() 
-            
-            max_area = 0
-            primary_label = None
-            emergency_stop = False
-
-            if len(results[0].boxes) > 0:
-                for box in results[0].boxes:
-                    class_id = int(box.cls[0].item())
-                    if class_id in self.id_to_label:
-                        label = self.id_to_label[class_id]
-                        x1, y1, x2, y2 = box.xyxy[0].tolist()
-                        area = (x2 - x1) * (y2 - y1)
-                        
-                        if label == 'SM':
-                            emergency_stop = True
-                            break
-                        if area > max_area:
-                            max_area = area
-                            primary_label = label
-
-            # Nếu phát hiện biển báo, bắn lệnh Twist qua Wi-Fi xuống Jetson
-            if emergency_stop or primary_label is not None:
-                twist = Twist()
-                if emergency_stop:
-                    twist.linear.x = 0.0
-                    twist.angular.z = 0.0
-                    self.get_logger().warn("🚨 LỆNH TỪ LAPTOP: Gặp Spiderman! Phanh khẩn cấp!")
-                elif primary_label in ['R', 'P']:
-                    twist.linear.x = 0.0
-                    twist.angular.z = 0.0
-                elif primary_label in ['G', 'S']:
-                    twist.linear.x = 0.5
-                    twist.angular.z = 0.0 
-                elif primary_label == 'Y':
-                    twist.linear.x = 0.15
-                    twist.angular.z = 0.0
-                elif primary_label == '50':
-                    twist.linear.x = 0.6
-                elif primary_label == 'TR':
-                    twist.linear.x = 0.2
-                    twist.angular.z = -0.65 
-                    self.get_logger().info("↪️ LỆNH TỪ LAPTOP: Bẻ lái sang phải!")
-
-                self.override_pub.publish(twist)
-            
-            # Mở cửa sổ xem trực tiếp kết quả YOLO trên Laptop
-            cv2.imshow("Laptop AI View", annotated_frame)
-            cv2.waitKey(1)
-
+            frame = self.ros_image_to_cv2(msg)
         except Exception as e:
-            self.get_logger().error(f"Lỗi: {e}")
+            self.get_logger().error(str(e))
+            return
+
+        h, w, _ = frame.shape
+
+        # ==========================
+        # YOLO DETECT
+        # ==========================
+        try:
+            results = self.model(frame, verbose=False, conf=0.25)
+            debug_view = results[0].plot()
+        except Exception as e:
+            self.get_logger().error(f"YOLO error: {e}")
+            debug_view = frame.copy()
+
+        # ==========================
+        # LANE DETECT
+        # ==========================
+        roi_y1 = int(h * self.roi_start_ratio)
+        roi = debug_view[roi_y1:h, :]
+
+        cv2.rectangle(
+            debug_view,
+            (0, roi_y1),
+            (w - 1, h - 1),
+            (0, 255, 255),
+            2
+        )
+
+        cv2.line(
+            debug_view,
+            (w // 2, 0),
+            (w // 2, h),
+            (255, 0, 0),
+            2
+        )
+
+        hsv = cv2.cvtColor(
+            roi,
+            cv2.COLOR_BGR2HSV
+        )
+
+        mask = cv2.inRange(
+            hsv,
+            self.lower_yellow,
+            self.upper_yellow
+        )
+
+        kernel = np.ones((5, 5), np.uint8)
+
+        mask = cv2.morphologyEx(
+            mask,
+            cv2.MORPH_OPEN,
+            kernel
+        )
+
+        mask = cv2.morphologyEx(
+            mask,
+            cv2.MORPH_CLOSE,
+            kernel
+        )
+
+        contours, _ = cv2.findContours(
+            mask,
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        valid_contours = [
+            c for c in contours
+            if cv2.contourArea(c) > self.min_contour_area
+        ]
+
+        center_lane = None
+
+        if len(valid_contours) > 0:
+
+            contour_centers = []
+
+            for c in valid_contours:
+
+                M = cv2.moments(c)
+
+                if M['m00'] > 0:
+
+                    cx = int(M['m10'] / M['m00'])
+
+                    contour_centers.append(
+                        (cx, c)
+                    )
+
+            if len(contour_centers) > 0:
+
+                contour_centers.sort(
+                    key=lambda x: x[0]
+                )
+
+                cx_left, contour = contour_centers[0]
+
+                cv2.drawContours(
+                    roi,
+                    [contour],
+                    -1,
+                    (0, 255, 0),
+                    3
+                )
+
+                center_lane = (
+                    cx_left +
+                    self.offset_to_center
+                )
+
+        if center_lane is not None:
+
+            error = center_lane - (w / 2)
+
+            cv2.circle(
+                roi,
+                (
+                    int(center_lane),
+                    roi.shape[0] // 2
+                ),
+                10,
+                (0, 0, 255),
+                -1
+            )
+
+            cv2.putText(
+                debug_view,
+                "LINE DETECTED",
+                (20, 40),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2
+            )
+
+            cv2.putText(
+                debug_view,
+                f"ERROR = {error:.1f}",
+                (20, 80),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2
+            )
+
+        else:
+
+            cv2.putText(
+                debug_view,
+                "NO LINE",
+                (20, 40),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 0, 255),
+                2
+            )
+
+        # Publish ảnh debug cho RViz / Jetson xem
+        self.publish_debug_image(debug_view)
+
+        # Hiện cửa sổ trên laptop
+        cv2.imshow("Laptop YOLO + Lane View", debug_view)
+        cv2.waitKey(1)
+
 
 def main(args=None):
     rclpy.init(args=args)
-    node = LaptopYoloBrain()
-    rclpy.spin(node)
+
+    node = LaptopYoloLaneViewer()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+
     node.destroy_node()
     cv2.destroyAllWindows()
     rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()
